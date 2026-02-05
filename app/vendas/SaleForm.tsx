@@ -272,13 +272,33 @@ export default function SaleForm({
     }, 0);
   }, [payments]);
 
-  const change = Math.max(0, totalPaid - total);
+  const change = Math.max(
+    0,
+    totalPaid - total - (payments.pix > 0 ? 0.02 : 0)
+  );
   const pending = Math.max(0, total - totalPaid);
 
   const normalizeMoneyInput = (raw: string) => {
     const cleaned = raw.replace(/[^0-9,.-]/g, "");
     if (cleaned.includes(",")) {
       return cleaned.replace(/\./g, "").replace(",", ".");
+    }
+    return cleaned;
+  };
+
+  const normalizeIntegerMoneyInput = (raw: string) => {
+    const cleaned = raw.replace(/[^0-9.,]/g, "");
+    if (cleaned.includes(",")) {
+      const [intPart] = cleaned.split(",");
+      return intPart.replace(/\./g, "");
+    }
+    if (cleaned.includes(".")) {
+      const parts = cleaned.split(".");
+      const last = parts[parts.length - 1] ?? "";
+      if (last.length === 2) {
+        return parts.slice(0, -1).join("");
+      }
+      return parts.join("");
     }
     return cleaned;
   };
@@ -955,16 +975,16 @@ export default function SaleForm({
                 </span>
                 <Input
                   className="pl-9"
-                  placeholder="0,00"
+                  placeholder="0"
                   value={entryPriceInput}
                   onChange={(e) => {
                     const raw = e.target.value;
-                    const normalized = normalizeMoneyInput(raw);
+                    const normalized = normalizeIntegerMoneyInput(raw);
                     const numeric = Math.max(0, Number(normalized) || 0);
-                    setEntryPriceInput(raw);
+                    setEntryPriceInput(normalized);
                     setEntryPrice(numeric);
                   }}
-                  inputMode="decimal"
+                  inputMode="numeric"
                   disabled={disableAll}
                 />
               </div>
