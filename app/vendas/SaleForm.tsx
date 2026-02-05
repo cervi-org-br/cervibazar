@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -104,6 +104,9 @@ export default function SaleForm({
   const [phoneQuery, setPhoneQuery] = useState("");
   const [nameQuery, setNameQuery] = useState("");
   const [suggestionsSource, setSuggestionsSource] = useState<"phone" | "name" | null>(null);
+  const selectingSuggestionRef = useRef(false);
+  const phoneSuggestRef = useRef<HTMLDivElement | null>(null);
+  const nameSuggestRef = useRef<HTMLDivElement | null>(null);
   const [authNeeded, setAuthNeeded] = useState(false);
   const [authUsername, setAuthUsername] = useState("");
   const [authPassword, setAuthPassword] = useState("");
@@ -375,6 +378,11 @@ export default function SaleForm({
   };
 
   useEffect(() => {
+    if (suggestionsSource !== "phone") return;
+    if (selectingSuggestionRef.current) {
+      selectingSuggestionRef.current = false;
+      return;
+    }
     const handler = setTimeout(async () => {
       const digits = phoneQuery.replace(/\D/g, "");
       if (digits.length < 3) {
@@ -403,6 +411,11 @@ export default function SaleForm({
   }, [phoneQuery, suggestionsSource]);
 
   useEffect(() => {
+    if (suggestionsSource !== "name") return;
+    if (selectingSuggestionRef.current) {
+      selectingSuggestionRef.current = false;
+      return;
+    }
     const handler = setTimeout(async () => {
       const term = nameQuery.trim();
       if (term.length < 3) {
@@ -429,6 +442,35 @@ export default function SaleForm({
     }, 300);
     return () => clearTimeout(handler);
   }, [nameQuery, suggestionsSource]);
+
+  useEffect(() => {
+    if (!showSuggestions) return;
+    const handleOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      const activeRef =
+        suggestionsSource === "phone"
+          ? phoneSuggestRef.current
+          : suggestionsSource === "name"
+            ? nameSuggestRef.current
+            : null;
+      if (activeRef && target && activeRef.contains(target)) return;
+      setShowSuggestions(false);
+      setSuggestionsSource(null);
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setShowSuggestions(false);
+      setSuggestionsSource(null);
+    };
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("touchstart", handleOutside);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("touchstart", handleOutside);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [showSuggestions, suggestionsSource]);
 
   const normalizeBirthday = (raw: Date | string | null | undefined) => {
     if (!raw) return "";
@@ -726,7 +768,7 @@ export default function SaleForm({
             <label className="block text-sm font-semibold mb-1 ml-1 text-text-secondary dark:text-[#bcaec4]" htmlFor="customer-phone">
               Celular (WhatsApp)
             </label>
-            <div className="relative">
+            <div className="relative" ref={phoneSuggestRef}>
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary">
                 <Lucide.Smartphone className="h-4 w-4" />
               </span>
@@ -747,7 +789,7 @@ export default function SaleForm({
                 tabIndex={0}
                 disabled={disableAll || lockNonItems}
               />
-              {showSuggestions && suggestions.length > 0 && !(disableAll || lockNonItems) && (
+              {showSuggestions && suggestions.length > 0 && suggestionsSource === "phone" && !(disableAll || lockNonItems) && (
                 <div className="absolute z-20 mt-1 w-full rounded-[16px] border border-border bg-white shadow-lg dark:border-[#452b4d] dark:bg-background-dark">
                   {suggestions.map((sug) => (
                     <button
@@ -755,6 +797,7 @@ export default function SaleForm({
                       type="button"
                       className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-primary/5 dark:hover:bg-[#382240]"
                       onClick={() => {
+                        selectingSuggestionRef.current = true;
                         const normalizedBirthday = normalizeBirthday(sug.birthday as Date | string | null | undefined);
                         const parts = splitBirthday(normalizedBirthday);
                         setCustomer({
@@ -785,7 +828,7 @@ export default function SaleForm({
             <label className="block text-sm font-semibold mb-1 ml-1 text-text-secondary dark:text-[#bcaec4]" htmlFor="customer-name">
               Nome Completo
             </label>
-            <div className="relative">
+            <div className="relative" ref={nameSuggestRef}>
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary">
                 <Lucide.BadgeCheck className="h-4 w-4" />
               </span>
@@ -813,6 +856,7 @@ export default function SaleForm({
                       type="button"
                       className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-primary/5 dark:hover:bg-[#382240]"
                       onClick={() => {
+                        selectingSuggestionRef.current = true;
                         const normalizedBirthday = normalizeBirthday(sug.birthday as Date | string | null | undefined);
                         const parts = splitBirthday(normalizedBirthday);
                         setCustomer({
