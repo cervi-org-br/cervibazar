@@ -225,6 +225,34 @@ export default function FechamentoDetalhePage() {
           </div>
         </section>
 
+        <section className="rounded-3xl border border-[#e6e1e8] bg-surface-light p-6 shadow-sm dark:border-[#452b4d] dark:bg-surface-dark">
+          <div className="mb-4 flex items-center gap-2 text-lg font-bold text-text-main dark:text-white">
+            <Lucide.AlertTriangle className="h-5 w-5 text-amber-500" />
+            Vendas Removidas
+          </div>
+          <p className="text-sm text-text-secondary dark:text-[#bcaec4]">
+            Vendas excluídas no dia. Esses valores não entram no fechamento.
+          </p>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-transparent bg-background-light p-4 dark:bg-[#382240]">
+              <div className="mb-1 text-xs font-bold uppercase tracking-wide text-text-secondary dark:text-[#bcaec4]">
+                Quantidade
+              </div>
+              <div className="text-2xl font-black text-text-main dark:text-white">
+                {detail ? formatNumber(detail.removedSalesCount) : "-"}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-transparent bg-background-light p-4 dark:bg-[#382240]">
+              <div className="mb-1 text-xs font-bold uppercase tracking-wide text-text-secondary dark:text-[#bcaec4]">
+                Total Removido
+              </div>
+              <div className="text-2xl font-black text-text-main dark:text-white">
+                {detail ? formatCurrency(detail.removedSalesTotal) : "-"}
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="rounded-3xl border border-[#e6e1e8] bg-surface-light p-6 shadow-sm dark:border-[#452b4d] dark:bg-surface-dark">
             <h3 className="mb-6 flex items-center gap-2 text-lg font-bold text-text-main dark:text-white">

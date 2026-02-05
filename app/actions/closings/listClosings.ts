@@ -91,12 +91,12 @@ export async function listClosings(
       (
         select coalesce(sum(s.total_amount), 0)
         from sales s
-        where ${saleDayExpr} = ${targetDate}
+        where ${saleDayExpr} = ${targetDate} and s.deleted_at is null
       ) as total,
       (
         select coalesce(sum(s.change_amount), 0)
         from sales s
-        where ${saleDayExpr} = ${targetDate}
+        where ${saleDayExpr} = ${targetDate} and s.deleted_at is null
       ) as troco,
       (
         select coalesce(sum(c.amount), 0)
@@ -113,12 +113,12 @@ export async function listClosings(
       (
         select coalesce(count(*), 0)
         from sales s
-        where ${saleDayExpr} = ${targetDate}
+        where ${saleDayExpr} = ${targetDate} and s.deleted_at is null
       ) as "totalSales",
       (
         select coalesce(count(*), 0)
         from sales s
-        where ${saleDayExpr} = ${targetDate} and s.closing_id is not null
+        where ${saleDayExpr} = ${targetDate} and s.closing_id is not null and s.deleted_at is null
       ) as "closedSales",
       (
         select coalesce(count(*), 0)
