@@ -378,6 +378,7 @@ export default function SaleForm({
   };
 
   useEffect(() => {
+    if (suggestionsSource !== "phone") return;
     if (selectingSuggestionRef.current) {
       selectingSuggestionRef.current = false;
       return;
@@ -410,6 +411,7 @@ export default function SaleForm({
   }, [phoneQuery, suggestionsSource]);
 
   useEffect(() => {
+    if (suggestionsSource !== "name") return;
     if (selectingSuggestionRef.current) {
       selectingSuggestionRef.current = false;
       return;
@@ -787,7 +789,7 @@ export default function SaleForm({
                 tabIndex={0}
                 disabled={disableAll || lockNonItems}
               />
-              {showSuggestions && suggestions.length > 0 && !(disableAll || lockNonItems) && (
+              {showSuggestions && suggestions.length > 0 && suggestionsSource === "phone" && !(disableAll || lockNonItems) && (
                 <div className="absolute z-20 mt-1 w-full rounded-[16px] border border-border bg-white shadow-lg dark:border-[#452b4d] dark:bg-background-dark">
                   {suggestions.map((sug) => (
                     <button
