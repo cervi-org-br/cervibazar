@@ -66,6 +66,34 @@ export function useSalesHistory() {
     [sales]
   );
 
+  const totalsByPayment = useMemo(
+    () =>
+      sales.reduce(
+        (acc, sale) => {
+          const credit = Number(sale.creditAmount);
+          const debit = Number(sale.debitAmount);
+          const cash = Number(sale.cashAmount);
+          const pix = Number(sale.pixAmount);
+          acc.credit += Number.isNaN(credit) ? 0 : credit;
+          acc.debit += Number.isNaN(debit) ? 0 : debit;
+          acc.cash += Number.isNaN(cash) ? 0 : cash;
+          acc.pix += Number.isNaN(pix) ? 0 : pix;
+          return acc;
+        },
+        { credit: 0, debit: 0, cash: 0, pix: 0 }
+      ),
+    [sales]
+  );
+
+  const totalToday = useMemo(() => {
+    const todayLabel = formatSaleDate(new Date());
+    return sales.reduce((sum, sale) => {
+      if (formatSaleDate(sale.saleDate) !== todayLabel) return sum;
+      const val = Number(sale.totalAmount);
+      return sum + (Number.isNaN(val) ? 0 : val);
+    }, 0);
+  }, [sales]);
+
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedName(clientName.trim());
@@ -237,6 +265,8 @@ export function useSalesHistory() {
     sales,
     loading,
     totalOfPeriod,
+    totalsByPayment,
+    totalToday,
     deleteOpen,
     deleting,
     openDelete,

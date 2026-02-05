@@ -37,6 +37,8 @@ export default function HistoricoClientPage() {
     sales,
     loading,
     totalOfPeriod,
+    totalsByPayment,
+    totalToday,
     deleteOpen,
     deleting,
     openDelete,
@@ -47,6 +49,33 @@ export default function HistoricoClientPage() {
     highlightedDays,
     holidays,
   } = useSalesHistory();
+
+  const formatCurrency = (value: number) => {
+    if (!Number.isFinite(value)) return "R$ 0,00";
+    return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  };
+
+  const isPositiveAmount = (value?: string | number | null) => {
+    const num = Number(value);
+    return Number.isFinite(num) && num > 0;
+  };
+
+  const renderPaymentChip = (
+    label: string,
+    value?: string | number | null,
+    className?: string
+  ) => {
+    const num = Number(value);
+    if (!Number.isFinite(num) || num <= 0) return null;
+    return (
+      <span
+        className={`inline-flex items-center gap-1 rounded-full px-3 py-1 ${className ?? "bg-muted/70"}`}
+      >
+        {label}:{" "}
+        <strong className="text-text-main dark:text-white">{formatCurrency(num)}</strong>
+      </span>
+    );
+  };
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
@@ -103,15 +132,18 @@ export default function HistoricoClientPage() {
       </div>
 
       <Card className="p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-text-secondary">Vendas do período</p>
           <div className="flex flex-wrap items-center gap-3 text-sm font-bold">
             <span className="inline-flex h-[32px] items-center rounded-full bg-secondary/20 px-3 py-1 text-text-main leading-none dark:text-white">
               {sales.length} venda(s)
             </span>
             <span className="inline-flex h-[32px] items-center rounded-full bg-primary/10 px-3 py-1 text-primary leading-none">
-              Total:{" "}
-              {totalOfPeriod.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              Total: {formatCurrency(totalOfPeriod)}
+            </span>
+            <span className="inline-flex h-[32px] items-center rounded-full bg-emerald-500/10 px-3 py-1 text-emerald-600 leading-none dark:text-emerald-300">
+              Total hoje: {formatCurrency(totalToday)}
             </span>
             <Button
               variant="outline"
@@ -123,6 +155,33 @@ export default function HistoricoClientPage() {
               <Lucide.Download className="h-4 w-4" />
               Exportar
             </Button>
+          </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-text-secondary dark:text-[#bcaec4]">
+            <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300">
+              Crédito:{" "}
+              <strong className="text-text-main dark:text-white">
+                {formatCurrency(totalsByPayment.credit)}
+              </strong>
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 bg-amber-500/10 text-amber-700 dark:text-amber-300">
+              Débito:{" "}
+              <strong className="text-text-main dark:text-white">
+                {formatCurrency(totalsByPayment.debit)}
+              </strong>
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+              Dinheiro:{" "}
+              <strong className="text-text-main dark:text-white">
+                {formatCurrency(totalsByPayment.cash)}
+              </strong>
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 bg-sky-500/10 text-sky-700 dark:text-sky-300">
+              Pix:{" "}
+              <strong className="text-text-main dark:text-white">
+                {formatCurrency(totalsByPayment.pix)}
+              </strong>
+            </span>
           </div>
         </div>
         <div className="mt-3">
@@ -146,9 +205,10 @@ export default function HistoricoClientPage() {
                   <TableHead>Data</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Telefone</TableHead>
-                  <TableHead>Total de Itens</TableHead>
-                  <TableHead>Valor Total</TableHead>
                   <TableHead>Vendedor</TableHead>
+                  <TableHead className="text-center">Total de Itens</TableHead>
+                  <TableHead>Valor Total</TableHead>
+                  <TableHead>Forma de Pagamento</TableHead>
                   <TableHead className="text-right">&nbsp;</TableHead>
                 </TableRow>
               </TableHeader>
@@ -183,17 +243,44 @@ export default function HistoricoClientPage() {
                       <TableCell className="text-sm text-text-secondary dark:text-[#bcaec4]">
                         {sale.clientPhone ?? "N/D"}
                       </TableCell>
-                      <TableCell className="font-bold text-text-main dark:text-white">
+                      <TableCell className="text-text-secondary dark:text-[#bcaec4]">
+                        {sale.sellerName ?? "N/D"}
+                      </TableCell>
+                      <TableCell className="text-center font-bold text-text-main dark:text-white">
                         {sale.totalItems}
                       </TableCell>
                       <TableCell className="font-bold text-text-main dark:text-white">
-                        {Number(sale.totalAmount).toLocaleString("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        })}
+                        {formatCurrency(Number(sale.totalAmount))}
                       </TableCell>
-                      <TableCell className="text-text-secondary dark:text-[#bcaec4]">
-                        {sale.sellerName ?? "N/D"}
+                      <TableCell>
+                        <div className="flex flex-wrap gap-2 text-xs font-semibold text-text-secondary dark:text-[#bcaec4]">
+                          {renderPaymentChip(
+                            "Crédito",
+                            sale.creditAmount,
+                            "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300"
+                          )}
+                          {renderPaymentChip(
+                            "Débito",
+                            sale.debitAmount,
+                            "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                          )}
+                          {renderPaymentChip(
+                            "Dinheiro",
+                            sale.cashAmount,
+                            "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                          )}
+                          {renderPaymentChip(
+                            "Pix",
+                            sale.pixAmount,
+                            "bg-sky-500/10 text-sky-700 dark:text-sky-300"
+                          )}
+                          {!isPositiveAmount(sale.creditAmount) &&
+                            !isPositiveAmount(sale.debitAmount) &&
+                            !isPositiveAmount(sale.cashAmount) &&
+                            !isPositiveAmount(sale.pixAmount) && (
+                              <span className="text-text-secondary dark:text-[#bcaec4]">-</span>
+                            )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end !gap-2">
