@@ -76,6 +76,7 @@ export default function SaleForm({
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [entryQuantity, setEntryQuantity] = useState<number>(1);
   const [entryPrice, setEntryPrice] = useState<number>(0);
+  const [entryPriceInput, setEntryPriceInput] = useState<string>("");
   const [cartOpen, setCartOpen] = useState(false);
   const [customer, setCustomer] = useState<Customer>({ name: "", phone: "", birthDate: "" });
   const [saleDate, setSaleDate] = useState<string>(todayISO());
@@ -84,6 +85,12 @@ export default function SaleForm({
     credito: 0,
     debito: 0,
     pix: 0,
+  });
+  const [paymentInputs, setPaymentInputs] = useState<Record<PaymentMethod, string>>({
+    dinheiro: "",
+    credito: "",
+    debito: "",
+    pix: "",
   });
   const [submissionState, setSubmissionState] = useState<"idle" | "submitting" | "failed">("idle");
   const [editLoading, setEditLoading] = useState(false);
@@ -95,6 +102,8 @@ export default function SaleForm({
   const [suggestions, setSuggestions] = useState<ClientSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [phoneQuery, setPhoneQuery] = useState("");
+  const [nameQuery, setNameQuery] = useState("");
+  const [suggestionsSource, setSuggestionsSource] = useState<"phone" | "name" | null>(null);
   const [authNeeded, setAuthNeeded] = useState(false);
   const [authUsername, setAuthUsername] = useState("");
   const [authPassword, setAuthPassword] = useState("");
@@ -193,6 +202,7 @@ export default function SaleForm({
     setCartOpen(true);
     setEntryQuantity(1);
     setEntryPrice(0);
+    setEntryPriceInput("");
   };
 
   const removeCartItem = (id: string) => {
@@ -245,7 +255,9 @@ export default function SaleForm({
     setCartItems([]);
     setEntryQuantity(1);
     setEntryPrice(0);
+    setEntryPriceInput("");
     setPayments({ credito: 0, debito: 0, dinheiro: 0, pix: 0 });
+    setPaymentInputs({ credito: "", debito: "", dinheiro: "", pix: "" });
     setSaleDate(todayISO());
     setSubmissionState("idle");
     setInitialItemsSignature(null);
@@ -262,12 +274,34 @@ export default function SaleForm({
 
   const change = Math.max(0, totalPaid - total);
   const pending = Math.max(0, total - totalPaid);
+
+  const normalizeMoneyInput = (raw: string) => {
+    const cleaned = raw.replace(/[^0-9,.-]/g, "");
+    if (cleaned.includes(",")) {
+      return cleaned.replace(/\./g, "").replace(",", ".");
+    }
+    return cleaned;
+  };
+
+  const formatPaymentInput = (value: number) => {
+    if (!value) return "";
+    return value.toFixed(2).replace(".", ",");
+  };
+
   const fillRemaining = (method: PaymentMethod) => {
-    setPayments({
+    const pixTotal = Math.round((total + 0.02) * 100) / 100;
+    const nextPayments = {
       credito: method === "credito" ? total : 0,
       debito: method === "debito" ? total : 0,
       dinheiro: method === "dinheiro" ? total : 0,
-      pix: method === "pix" ? total : 0,
+      pix: method === "pix" ? pixTotal : 0,
+    };
+    setPayments(nextPayments);
+    setPaymentInputs({
+      credito: formatPaymentInput(nextPayments.credito),
+      debito: formatPaymentInput(nextPayments.debito),
+      dinheiro: formatPaymentInput(nextPayments.dinheiro),
+      pix: formatPaymentInput(nextPayments.pix),
     });
   };
 
@@ -326,6 +360,7 @@ export default function SaleForm({
       if (digits.length < 3) {
         setSuggestions([]);
         setShowSuggestions(false);
+        if (suggestionsSource === "phone") setSuggestionsSource(null);
         return;
       }
       try {
@@ -337,13 +372,43 @@ export default function SaleForm({
         const result = await searchClients(token, phoneQuery);
         setSuggestions(result);
         setShowSuggestions(result.length > 0);
+        setSuggestionsSource(result.length > 0 ? "phone" : null);
       } catch {
         setSuggestions([]);
         setShowSuggestions(false);
+        if (suggestionsSource === "phone") setSuggestionsSource(null);
       }
     }, 300);
     return () => clearTimeout(handler);
-  }, [phoneQuery]);
+  }, [phoneQuery, suggestionsSource]);
+
+  useEffect(() => {
+    const handler = setTimeout(async () => {
+      const term = nameQuery.trim();
+      if (term.length < 3) {
+        setSuggestions([]);
+        setShowSuggestions(false);
+        if (suggestionsSource === "name") setSuggestionsSource(null);
+        return;
+      }
+      try {
+        const token = getClientToken();
+        if (!token) {
+          setAuthNeeded(true);
+          return;
+        }
+        const result = await searchClients(token, term);
+        setSuggestions(result);
+        setShowSuggestions(result.length > 0);
+        setSuggestionsSource(result.length > 0 ? "name" : null);
+      } catch {
+        setSuggestions([]);
+        setShowSuggestions(false);
+        if (suggestionsSource === "name") setSuggestionsSource(null);
+      }
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [nameQuery, suggestionsSource]);
 
   const normalizeBirthday = (raw: Date | string | null | undefined) => {
     if (!raw) return "";
@@ -401,6 +466,12 @@ export default function SaleForm({
           debito: Number(detail.debitAmount) || 0,
           dinheiro: Number(detail.cashAmount) || 0,
           pix: Number(detail.pixAmount) || 0,
+        });
+        setPaymentInputs({
+          credito: formatPaymentInput(Number(detail.creditAmount) || 0),
+          debito: formatPaymentInput(Number(detail.debitAmount) || 0),
+          dinheiro: formatPaymentInput(Number(detail.cashAmount) || 0),
+          pix: formatPaymentInput(Number(detail.pixAmount) || 0),
         });
         setCartItems(
           detail.items.map((item) => ({
@@ -639,18 +710,19 @@ export default function SaleForm({
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary">
                 <Lucide.Smartphone className="h-4 w-4" />
               </span>
-              <Input
-                id="customer-phone"
-                value={customer.phone}
-                onChange={(e) =>
-                  setCustomer((prev) => {
-                    const formatted = formatPhone(e.target.value);
-                    setPhoneQuery(formatted);
-                    return { ...prev, phone: formatted };
-                  })
-                }
-                placeholder="(00) 00000-0000"
-                inputMode="tel"
+                <Input
+                  id="customer-phone"
+                  value={customer.phone}
+                  onChange={(e) =>
+                    setCustomer((prev) => {
+                      const formatted = formatPhone(e.target.value);
+                      setPhoneQuery(formatted);
+                      setSuggestionsSource("phone");
+                      return { ...prev, phone: formatted };
+                    })
+                  }
+                  placeholder="(00) 00000-0000"
+                  inputMode="tel"
                 className="pl-10"
                 tabIndex={0}
                 disabled={disableAll || lockNonItems}
@@ -671,7 +743,10 @@ export default function SaleForm({
                           birthDate: normalizedBirthday,
                         });
                         setBirthParts(parts);
+                        setPhoneQuery(formatPhone(sug.phone ?? ""));
+                        setNameQuery(sug.name);
                         setShowSuggestions(false);
+                        setSuggestionsSource(null);
                       }}
                     >
                       <div className="flex flex-col">
@@ -697,12 +772,51 @@ export default function SaleForm({
               <Input
                 id="customer-name"
                 value={customer.name}
-                onChange={(e) => setCustomer((prev) => ({ ...prev, name: e.target.value }))}
+                onChange={(e) =>
+                  setCustomer((prev) => {
+                    const value = e.target.value;
+                    setNameQuery(value);
+                    setSuggestionsSource("name");
+                    return { ...prev, name: value };
+                  })
+                }
                 placeholder="Nome do cliente"
                 className="pl-10"
                 tabIndex={0}
                 disabled={disableAll || lockNonItems}
               />
+              {showSuggestions && suggestions.length > 0 && suggestionsSource === "name" && !(disableAll || lockNonItems) && (
+                <div className="absolute z-20 mt-1 w-full rounded-[16px] border border-border bg-white shadow-lg dark:border-[#452b4d] dark:bg-background-dark">
+                  {suggestions.map((sug) => (
+                    <button
+                      key={sug.id}
+                      type="button"
+                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-primary/5 dark:hover:bg-[#382240]"
+                      onClick={() => {
+                        const normalizedBirthday = normalizeBirthday(sug.birthday as Date | string | null | undefined);
+                        const parts = splitBirthday(normalizedBirthday);
+                        setCustomer({
+                          name: sug.name,
+                          phone: formatPhone(sug.phone ?? ""),
+                          birthDate: normalizedBirthday,
+                        });
+                        setBirthParts(parts);
+                        setPhoneQuery(formatPhone(sug.phone ?? ""));
+                        setNameQuery(sug.name);
+                        setShowSuggestions(false);
+                        setSuggestionsSource(null);
+                      }}
+                    >
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-text-main dark:text-white">{sug.name}</span>
+                        <span className="text-xs text-text-secondary dark:text-[#bcaec4]">
+                          {formatPhone(sug.phone ?? "")}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <div className="w-full md:max-w-xs space-y-1">
@@ -842,8 +956,14 @@ export default function SaleForm({
                 <Input
                   className="pl-9"
                   placeholder="0,00"
-                  value={entryPrice || ""}
-                  onChange={(e) => setEntryPrice(Math.max(0, Number(e.target.value)))}
+                  value={entryPriceInput}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    const normalized = normalizeMoneyInput(raw);
+                    const numeric = Math.max(0, Number(normalized) || 0);
+                    setEntryPriceInput(raw);
+                    setEntryPrice(numeric);
+                  }}
                   inputMode="decimal"
                   disabled={disableAll}
                 />
@@ -1000,13 +1120,14 @@ export default function SaleForm({
                     </span>
                     <input
                       className="w-full h-14 pl-12 pr-4 bg-background-light dark:bg-background-dark border-transparent focus:border-primary focus:ring-0 rounded-[16px] text-text-main dark:text-white font-bold text-xl placeholder:text-text-secondary/60"
-                      value={payments[method] || ""}
-                      onChange={(e) =>
-                        setPayments((prev) => ({
-                          ...prev,
-                          [method]: Math.max(0, Number(e.target.value)),
-                        }))
-                      }
+                      value={paymentInputs[method]}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        const normalized = normalizeMoneyInput(raw);
+                        const numeric = Math.max(0, Number(normalized) || 0);
+                        setPaymentInputs((prev) => ({ ...prev, [method]: raw }));
+                        setPayments((prev) => ({ ...prev, [method]: numeric }));
+                      }}
                       onFocus={markPaymentReviewed}
                       inputMode="decimal"
                       placeholder="000,00"

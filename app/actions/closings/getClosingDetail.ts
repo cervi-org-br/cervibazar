@@ -27,6 +27,8 @@ export type ClosingDetail = {
   total: number;
   change: number;
   netTotal: number;
+  removedSalesCount: number;
+  removedSalesTotal: number;
   payments: PaymentTotals;
   categories: CategoryTotals[];
   sangriaTotal: number;
@@ -98,7 +100,7 @@ export async function getClosingDetail(
         coalesce(sum(si.quantity), 0) as items
       from sales s
       left join sale_items si on si.sale_id = s.id
-      where s.sale_date = ${targetDate}
+      where s.sale_date = ${targetDate} and s.deleted_at is null
       group by s.id, s.created_at, s.total_amount, s.change_amount
     )
     select
@@ -134,7 +136,18 @@ export async function getClosingDetail(
       coalesce(sum(pix_amount), 0) as pix,
       coalesce(sum(pending_amount), 0) as pending
     from sales s
-    where s.sale_date = ${targetDate}
+    where s.sale_date = ${targetDate} and s.deleted_at is null
+  `;
+
+  const removedSalesQuery = sql<{
+    total: string | null;
+    count: string | null;
+  }>`
+    select
+      coalesce(sum(s.total_amount), 0) as total,
+      coalesce(count(*), 0) as count
+    from sales s
+    where s.sale_date = ${targetDate} and s.deleted_at is not null
   `;
 
   const categoriesQuery = sql<CategoryTotals>`
@@ -145,7 +158,7 @@ export async function getClosingDetail(
     from sales s
     left join sale_items si on si.sale_id = s.id
     left join categories cat on cat.id = si.category_id
-    where s.sale_date = ${targetDate}
+    where s.sale_date = ${targetDate} and s.deleted_at is null
     group by cat.name
     order by category asc;
   `;
@@ -176,6 +189,8 @@ export async function getClosingDetail(
       total: 0,
       change: 0,
       netTotal: 0,
+      removedSalesCount: 0,
+      removedSalesTotal: 0,
       payments: { credit: 0, debit: 0, cash: 0, pix: 0, pending: 0 },
       categories: [],
       sangriaTotal: 0,
@@ -185,6 +200,9 @@ export async function getClosingDetail(
 
   const { rows: paymentRows } = await db.execute(paymentsQuery);
   const payment = paymentRows[0];
+
+  const { rows: removedRows } = await db.execute(removedSalesQuery);
+  const removed = removedRows[0];
 
   const { rows: categories } = await db.execute<CategoryTotals>(categoriesQuery);
   const { rows: sangriasByReason } = await db.execute<CategoryTotals>(sangriasQuery);
@@ -203,6 +221,8 @@ export async function getClosingDetail(
       Number(totals.opening || 0) -
       Number(totals.troco || 0) -
       Number(totals.sangria || 0),
+    removedSalesCount: Number(removed?.count) || 0,
+    removedSalesTotal: Number(removed?.total) || 0,
     payments: {
       credit: Number(payment?.credit) || 0,
       debit: Number(payment?.debit) || 0,
