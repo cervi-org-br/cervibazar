@@ -275,10 +275,7 @@ export default function SaleForm({
     }, 0);
   }, [payments]);
 
-  const change = Math.max(
-    0,
-    totalPaid - total - (payments.pix > 0 ? 0.02 : 0)
-  );
+  const change = Math.max(0, totalPaid - total);
   const pending = Math.max(0, total - totalPaid);
 
   const normalizeMoneyInput = (raw: string) => {
@@ -312,12 +309,11 @@ export default function SaleForm({
   };
 
   const fillRemaining = (method: PaymentMethod) => {
-    const pixTotal = Math.round((total + 0.02) * 100) / 100;
     const nextPayments = {
       credito: method === "credito" ? total : 0,
       debito: method === "debito" ? total : 0,
       dinheiro: method === "dinheiro" ? total : 0,
-      pix: method === "pix" ? pixTotal : 0,
+      pix: method === "pix" ? total : 0,
     };
     setPayments(nextPayments);
     setPaymentInputs({
