@@ -20,6 +20,14 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Banco de dados
+
+- Provedor: [Neon](https://console.neon.tech) (Postgres serverless, região `sa-east-1`)
+- Conta de acesso ao painel: **kernel.conf**
+- Database de dev: `cervi-bazar-dev` (endpoint `ep-noisy-mouse-ac4xwxzh-pooler`)
+- Connection string vai em `DATABASE_URL` no `.env.local` (dev) e nas env vars do projeto na Vercel (prod)
+- ORM: Drizzle (`drizzle.config.ts`, migrations em `drizzle/`)
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
